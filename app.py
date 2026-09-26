@@ -351,22 +351,8 @@ async def download(
     # Native browser download: do NOT fetch this URL from JavaScript. The
     # frontend opens this URL directly in an <a>, so Chrome owns the download
     # and displays it in the Downloads panel while it is in progress.
-    # HTTP headers are encoded as latin-1 by Starlette. A YouTube title can
-    # contain Tamil, emoji, or other Unicode characters, so putting the raw
-    # title in `filename="..."` raises UnicodeEncodeError. Use an ASCII
-    # fallback plus RFC 5987 UTF-8 filename* instead. Browsers such as Chrome
-    # will use the UTF-8 filename while the header itself remains ASCII-safe.
-    ascii_fallback = re.sub(r"[^A-Za-z0-9._ -]+", "_", fallback_name).strip()
-    if not ascii_fallback:
-        ascii_fallback = "dropfetch_download"
-    encoded_filename = quote(fallback_name, safe="!#$&+-.^_`|~")
-    content_disposition = (
-        f'attachment; filename="{ascii_fallback}"; '
-        f"filename*=UTF-8''{encoded_filename}"
-    )
-
     headers = {
-        "Content-Disposition": content_disposition,
+        "Content-Disposition": f'attachment; filename="{fallback_name}"',
         "Cache-Control": "no-store",
         "X-Accel-Buffering": "no",
     }
