@@ -4,14 +4,4 @@ services:
     runtime: docker
     plan: free
     healthCheckPath: /api/health
-    envVars:
-      - key: PORT
-        value: 10000
-      - key: MAX_DURATION_SECONDS
-        value: "7200"
-      - key: MAX_FILE_SIZE_MB
-        value: "1024"
-      - key: MAX_CONCURRENT_DOWNLOADS
-        value: "2"
-      - key: RATE_LIMIT_SECONDS
-        value: "3"
+    autoDeploy: true
