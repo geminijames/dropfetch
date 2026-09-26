@@ -1,112 +1,32 @@
-# DropFetch — Final publish-ready starter
+# DropFetch — Browser-Native Download Build
 
-DropFetch is a FastAPI + yt-dlp media utility with four modes:
-- Video: MP4 with quality selection
-- Audio: MP3
-- Image: best image/thumbnail exposed by the source
-- File: direct HTTP/HTTPS file URL
+DropFetch is a FastAPI + yt-dlp media downloader for publicly accessible supported media URLs.
 
-## Important platform limitation
+## What changed in this build
 
-No public downloader can honestly guarantee every URL from every platform. yt-dlp maintains a large extractor list, but its documentation says sites change and an extractor can stop working. Private/login-only content and DRM are not bypassed.
+- Download button now starts a **real browser download** instead of using JavaScript `fetch()` and creating a Blob only after the response finishes.
+- Chrome receives `Content-Disposition: attachment` immediately, so the file appears in the browser's Downloads panel while the server prepares the media.
+- The page no longer shows a fake in-page percentage bar. Chrome owns the actual download progress, like a normal file download.
+- Video/audio/file/image modes remain available.
+- Thumbnail proxy and favicon improvements are included.
+- `/api/health` remains the Render health check endpoint.
 
-## Run on Windows
+## Important behavior
 
-Open PowerShell in this folder:
+For video/audio extraction, the server may need to download/merge/process the media before bytes can be sent to Chrome. The Chrome download item is created when the response starts, but its byte progress can remain at the starting stage until the generated output is ready. This is normal for the current server-side architecture.
 
-```powershell
-py -m venv .venv
-.venv\Scripts\python.exe -m pip install --upgrade pip
-.venv\Scripts\python.exe -m pip install -r requirements.txt
-.venv\Scripts\python.exe -m uvicorn app:app --reload
-```
+A future high-scale architecture could use a background job queue plus object storage and then give the browser a direct signed download URL.
 
-Open:
+## Deploy on Render
 
-http://127.0.0.1:8000
+1. Replace the project files in the GitHub repository with this build.
+2. Commit and push to the `main` branch.
+3. Render will auto-deploy if Auto Deploy is enabled.
+4. Otherwise use **Deploys → Manual Deploy → Deploy latest commit**.
+5. Open the public DropFetch URL and hard-refresh the page.
+6. Inspect a supported URL, then click **Download**.
+7. Open Chrome's download icon in the top-right. The new file should appear there as an active browser download instead of appearing only after the page's JavaScript finishes.
 
-The Docker image includes FFmpeg.
+## Usage and limitations
 
-## Docker locally
-
-```powershell
-docker build -t dropfetch .
-docker run --rm -p 10000:10000 dropfetch
-```
-
-Open:
-
-http://127.0.0.1:10000
-
-## Publish with Render
-
-1. Create a GitHub repository named `dropfetch`.
-2. Upload every file in this project, including `Dockerfile` and `render.yaml`.
-3. Sign in to Render.
-4. New -> Web Service.
-5. Connect your GitHub repository.
-6. Select Docker as the runtime if Render asks.
-7. The included `render.yaml` is also provided for configuration.
-8. Deploy.
-9. Render will provide an `onrender.com` public URL.
-10. Test YouTube, Instagram, Pinterest and other supported public URLs.
-11. Later, add a custom domain from the Render service settings.
-
-Render web services require the application to listen on 0.0.0.0 and the service port; this Dockerfile uses the `PORT` environment variable and defaults to 10000.
-
-## Why downloads can be slow
-
-The user's browser is not downloading directly from the social platform. Your server first retrieves/processes the media and then sends it to the user. Therefore the server's CPU, RAM, bandwidth, region, source platform and hosting plan affect speed.
-
-The app already uses parallel fragment downloading where supported and avoids storing a permanent media library.
-
-For a high-traffic production service, replace the single request/download flow with:
-Browser -> API -> Redis queue -> worker -> object storage -> signed download URL.
-
-That architecture prevents long downloads from tying up web-server workers.
-
-## Production hardening before large public traffic
-
-Add:
-- persistent Redis-backed rate limiting
-- job queue/background workers
-- maximum file size and duration controls
-- abuse monitoring
-- structured logs
-- privacy policy
-- terms of service
-- copyright/DMCA contact process if applicable
-- authentication/admin controls if required
-- object storage such as S3/R2 for completed jobs
-- automatic cleanup of temporary files
-- monitoring/alerts
-
-Do not add mechanisms intended to bypass DRM, private-account access, or platform access controls.
-
-## Updating yt-dlp
-
-yt-dlp changes frequently because websites change. Update regularly:
-
-```powershell
-.venv\Scripts\python.exe -m pip install -U "yt-dlp[default]"
-```
-
-Then rebuild/redeploy.
-
-## Expected behavior
-
-Video mode:
-- inspect public page
-- show title/thumbnail
-- download MP4
-
-Audio:
-- extract audio and return MP3
-
-Image:
-- download the image/thumbnail exposed by the extractor
-
-File:
-- download a direct public HTTP/HTTPS file URL
-
-A social post containing multiple images may expose only one representative image through the extractor; a future gallery mode would need site-specific handling.
+Use the service only for media you are authorized to download. Platform support can change, and login-only/private/DRM-protected media may not work. Do not use the application to bypass access controls or DRM.
