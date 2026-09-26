@@ -1,32 +1,30 @@
-# DropFetch — Browser-Native Download Build
+# DropFetch — YouTube PO-Token Edition
 
-DropFetch is a FastAPI + yt-dlp media downloader for publicly accessible supported media URLs.
+DropFetch is a FastAPI + yt-dlp media downloader for publicly accessible media that the user is authorized to download.
 
-## What changed in this build
+## What's new
 
-- Download button now starts a **real browser download** instead of using JavaScript `fetch()` and creating a Blob only after the response finishes.
-- Chrome receives `Content-Disposition: attachment` immediately, so the file appears in the browser's Downloads panel while the server prepares the media.
-- The page no longer shows a fake in-page percentage bar. Chrome owns the actual download progress, like a normal file download.
-- Video/audio/file/image modes remain available.
-- Thumbnail proxy and favicon improvements are included.
-- `/api/health` remains the Render health check endpoint.
+- Native browser downloads: Chrome receives a normal attachment response instead of a JavaScript Blob download.
+- Pinterest and other existing supported downloads remain available.
+- YouTube support now includes the official BgUtils Proof-of-Origin token provider integration for yt-dlp.
+- Thumbnail proxy and responsive UI remain enabled.
 
-## Important behavior
+## YouTube note
 
-For video/audio extraction, the server may need to download/merge/process the media before bytes can be sent to Chrome. The Chrome download item is created when the response starts, but its byte progress can remain at the starting stage until the generated output is ready. This is normal for the current server-side architecture.
+YouTube increasingly requires Proof-of-Origin tokens for some yt-dlp clients. This build runs the official `bgutil-ytdlp-pot-provider` 2.0.0 provider locally inside the same Docker service and installs the matching yt-dlp plugin. The provider can help with the `Sign in to confirm you're not a bot` error, but it does not guarantee that every YouTube URL will work; YouTube may still reject traffic or require account access for restricted content.
 
-A future high-scale architecture could use a background job queue plus object storage and then give the browser a direct signed download URL.
+## Deploy
 
-## Deploy on Render
+Replace `app.py`, `Dockerfile`, `requirements.txt`, `static/index.html`, and `README.md` in the existing DropFetch repository, then:
 
-1. Replace the project files in the GitHub repository with this build.
-2. Commit and push to the `main` branch.
-3. Render will auto-deploy if Auto Deploy is enabled.
-4. Otherwise use **Deploys → Manual Deploy → Deploy latest commit**.
-5. Open the public DropFetch URL and hard-refresh the page.
-6. Inspect a supported URL, then click **Download**.
-7. Open Chrome's download icon in the top-right. The new file should appear there as an active browser download instead of appearing only after the page's JavaScript finishes.
+```bash
+git add .
+git commit -m "Add YouTube PO token provider"
+git push origin main
+```
 
-## Usage and limitations
+Render will build the Docker image and deploy the new commit when auto-deploy is enabled.
 
-Use the service only for media you are authorized to download. Platform support can change, and login-only/private/DRM-protected media may not work. Do not use the application to bypass access controls or DRM.
+## Safety / access
+
+Use the service only for media you are authorized to download. This project does not attempt to bypass DRM, private access controls, or paid-content restrictions.
