@@ -23,7 +23,7 @@ MAX_FILE_SIZE_MB = int(os.getenv("MAX_FILE_SIZE_MB", "1024"))
 MAX_CONCURRENT_DOWNLOADS = int(os.getenv("MAX_CONCURRENT_DOWNLOADS", "2"))
 RATE_LIMIT_SECONDS = float(os.getenv("RATE_LIMIT_SECONDS", "3"))
 
-app = FastAPI(title="DropFetch", version="4.1.2")
+app = FastAPI(title="DropFetch", version="4.1.3")
 
 POT_PROVIDER_HOST = os.getenv("POT_PROVIDER_HOST", "127.0.0.1")
 POT_PROVIDER_PORT = int(os.getenv("POT_PROVIDER_PORT", "4416"))
@@ -96,7 +96,7 @@ def base_ydl():
             # Current yt-dlp PO-token guidance recommends the mweb client
             # when using a PO-token provider.
             "youtube": {
-                "player_client": ["web_embedded"],
+                "player_client": ["android_vr"],
             },
         },
     }
