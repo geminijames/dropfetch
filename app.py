@@ -351,8 +351,20 @@ async def download(
     # Native browser download: do NOT fetch this URL from JavaScript. The
     # frontend opens this URL directly in an <a>, so Chrome owns the download
     # and displays it in the Downloads panel while it is in progress.
+    # HTTP headers are Latin-1 encoded by Starlette, so never put the
+    # Unicode YouTube title directly into filename="...".
+    # Use an ASCII fallback plus RFC 5987 filename* for the real UTF-8 name.
+    ascii_name = re.sub(r"[^A-Za-z0-9._-]+", "_", fallback_name).strip("._-")
+    if not ascii_name:
+        ascii_name = "download"
+
+    encoded_name = quote(fallback_name, safe="")
+
     headers = {
-        "Content-Disposition": f'attachment; filename="{fallback_name}"',
+        "Content-Disposition": (
+            f'attachment; filename="{ascii_name}"; '
+            f"filename*=UTF-8''{encoded_name}"
+        ),
         "Cache-Control": "no-store",
         "X-Accel-Buffering": "no",
     }
@@ -501,21 +513,50 @@ async def direct_file_download(url: str, temp_dir: Path):
 
 @app.on_event("startup")
 async def startup():
-    """Start the local BgUtils PO-token provider used by yt-dlp for YouTube."""
+    """Ensure the BgUtils PO-token provider is available.
+
+    In the Render Docker image, the provider is started by Docker CMD before
+    Uvicorn. Locally, this FastAPI startup hook starts it when needed.
+    """
     global pot_provider_process
-    provider = Path("/opt/bgutil/server/build/main.js")
+
+    # If the provider was already started by Docker CMD, do not start a
+    # second copy on the same port.
+    try:
+        with socket.create_connection(
+            (POT_PROVIDER_HOST, POT_PROVIDER_PORT), timeout=0.25
+        ):
+            return
+    except OSError:
+        pass
+
+    provider_candidates = [
+        Path("/opt/bgutil/server/build/main.js"),
+        Path("/app/build/main.js"),
+    ]
+    provider = next((p for p in provider_candidates if p.exists()), None)
     node = "/usr/local/bin/node"
-    if provider.exists() and Path(node).exists():
+
+    if provider and Path(node).exists():
         pot_provider_process = subprocess.Popen(
-            [node, str(provider), "--host", POT_PROVIDER_HOST, "--port", str(POT_PROVIDER_PORT)],
+            [
+                node,
+                str(provider),
+                "--host",
+                POT_PROVIDER_HOST,
+                "--port",
+                str(POT_PROVIDER_PORT),
+            ],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.STDOUT,
         )
-        # Give the provider a moment to bind its local port. The plugin will
-        # also retry when yt-dlp makes its first request.
+
+        # Give the provider a moment to bind its local port.
         for _ in range(20):
             try:
-                with socket.create_connection((POT_PROVIDER_HOST, POT_PROVIDER_PORT), timeout=0.25):
+                with socket.create_connection(
+                    (POT_PROVIDER_HOST, POT_PROVIDER_PORT), timeout=0.25
+                ):
                     break
             except OSError:
                 await asyncio.sleep(0.25)
