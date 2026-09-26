@@ -3,6 +3,7 @@ import ipaddress
 import os
 import re
 import socket
+import subprocess
 import tempfile
 import time
 from pathlib import Path
@@ -22,7 +23,12 @@ MAX_FILE_SIZE_MB = int(os.getenv("MAX_FILE_SIZE_MB", "1024"))
 MAX_CONCURRENT_DOWNLOADS = int(os.getenv("MAX_CONCURRENT_DOWNLOADS", "2"))
 RATE_LIMIT_SECONDS = float(os.getenv("RATE_LIMIT_SECONDS", "3"))
 
-app = FastAPI(title="DropFetch", version="4.0.0")
+app = FastAPI(title="DropFetch", version="4.1.0")
+
+POT_PROVIDER_HOST = os.getenv("POT_PROVIDER_HOST", "127.0.0.1")
+POT_PROVIDER_PORT = int(os.getenv("POT_PROVIDER_PORT", "4416"))
+POT_PROVIDER_URL = f"http://{POT_PROVIDER_HOST}:{POT_PROVIDER_PORT}"
+pot_provider_process = None
 app.mount("/static", StaticFiles(directory=APP_DIR / "static"), name="static")
 
 semaphore = asyncio.Semaphore(MAX_CONCURRENT_DOWNLOADS)
@@ -82,6 +88,9 @@ def base_ydl():
         "retries": 2,
         "fragment_retries": 2,
         "concurrent_fragment_downloads": 8,
+        "extractor_args": {
+            "youtubepot-bgutilhttp": {"base_url": POT_PROVIDER_URL},
+        },
     }
 
 
@@ -114,7 +123,7 @@ async def favicon():
 
 @app.get("/api/health")
 async def health():
-    return {"ok": True, "service": "DropFetch", "version": "4.0.0"}
+    return {"ok": True, "service": "DropFetch", "version": "4.1.0", "youtube_pot_provider": True}
 
 
 @app.post("/api/info")
@@ -342,8 +351,22 @@ async def download(
     # Native browser download: do NOT fetch this URL from JavaScript. The
     # frontend opens this URL directly in an <a>, so Chrome owns the download
     # and displays it in the Downloads panel while it is in progress.
+    # HTTP headers are encoded as latin-1 by Starlette. A YouTube title can
+    # contain Tamil, emoji, or other Unicode characters, so putting the raw
+    # title in `filename="..."` raises UnicodeEncodeError. Use an ASCII
+    # fallback plus RFC 5987 UTF-8 filename* instead. Browsers such as Chrome
+    # will use the UTF-8 filename while the header itself remains ASCII-safe.
+    ascii_fallback = re.sub(r"[^A-Za-z0-9._ -]+", "_", fallback_name).strip()
+    if not ascii_fallback:
+        ascii_fallback = "dropfetch_download"
+    encoded_filename = quote(fallback_name, safe="!#$&+-.^_`|~")
+    content_disposition = (
+        f'attachment; filename="{ascii_fallback}"; '
+        f"filename*=UTF-8''{encoded_filename}"
+    )
+
     headers = {
-        "Content-Disposition": f'attachment; filename="{fallback_name}"',
+        "Content-Disposition": content_disposition,
         "Cache-Control": "no-store",
         "X-Accel-Buffering": "no",
     }
@@ -492,4 +515,33 @@ async def direct_file_download(url: str, temp_dir: Path):
 
 @app.on_event("startup")
 async def startup():
-    pass
+    """Start the local BgUtils PO-token provider used by yt-dlp for YouTube."""
+    global pot_provider_process
+    provider = Path("/opt/bgutil/server/build/main.js")
+    node = "/usr/local/bin/node"
+    if provider.exists() and Path(node).exists():
+        pot_provider_process = subprocess.Popen(
+            [node, str(provider), "--host", POT_PROVIDER_HOST, "--port", str(POT_PROVIDER_PORT)],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.STDOUT,
+        )
+        # Give the provider a moment to bind its local port. The plugin will
+        # also retry when yt-dlp makes its first request.
+        for _ in range(20):
+            try:
+                with socket.create_connection((POT_PROVIDER_HOST, POT_PROVIDER_PORT), timeout=0.25):
+                    break
+            except OSError:
+                await asyncio.sleep(0.25)
+
+
+@app.on_event("shutdown")
+async def shutdown():
+    global pot_provider_process
+    if pot_provider_process and pot_provider_process.poll() is None:
+        pot_provider_process.terminate()
+        try:
+            pot_provider_process.wait(timeout=3)
+        except subprocess.TimeoutExpired:
+            pot_provider_process.kill()
+    pot_provider_process = None
