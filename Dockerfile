@@ -26,11 +26,6 @@ ENV POT_PROVIDER_PORT=4416
 
 EXPOSE 10000
 
-# IMPORTANT:
-# BgUtils has its own Node ENTRYPOINT.
-# We must remove it so our combined container can start correctly.
 ENTRYPOINT []
 
-# Start BgUtils PO-token provider first,
-# then start the DropFetch FastAPI server.
-CMD ["sh", "-c", "node /app/build/main.js --host 127.0.0.1 --port 4416 >/tmp/bgutil-provider.log 2>&1 & exec python3 -m uvicorn app:app --host 0.0.0.0 --port ${PORT:-10000}"]
+CMD ["python3", "-m", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "10000"]
