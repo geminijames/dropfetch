@@ -81,8 +81,9 @@ def safe_name(value: str, fallback="download"):
 
 def base_ydl():
     return {
-        "quiet": True,
-        "no_warnings": True,
+        "quiet": False,
+        "no_warnings": False,
+        "verbose": True,
         "noplaylist": True,
         "socket_timeout": 20,
         "retries": 2,
