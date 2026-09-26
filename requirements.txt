@@ -1,5 +1,7 @@
-fastapi>=0.115,<1
-uvicorn[standard]>=0.34,<1
-yt-dlp[default]>=2026.8
-httpx>=0.28,<1
-pydantic>=2.10,<3
+fastapi==0.115.14
+uvicorn[standard]==0.34.3
+yt-dlp[default]==2026.8.19
+bgutil-ytdlp-pot-provider==2.0.0
+httpx==0.28.1
+python-multipart==0.0.20
+pydantic==2.11.7
