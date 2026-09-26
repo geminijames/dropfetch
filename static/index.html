@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DropFetch — Download Video, Audio & Images</title>
+<meta name="description" content="Download publicly accessible media from supported platforms.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#060811;--panel:#0d1220;--panel2:#11182a;--line:#273149;--text:#f7f8fc;--muted:#9da8be;--purple:#805cff;--mint:#2ce0aa;--danger:#ff7183}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:radial-gradient(900px 500px at 50% -50px,#30255e 0,#0a0d18 48%,#060811 100%);color:var(--text);font-family:Inter,system-ui,sans-serif;min-height:100vh}
+.container{width:min(1080px,calc(100% - 36px));margin:auto}.nav{height:82px;display:flex;align-items:center;justify-content:space-between}.brand{font-size:23px;font-weight:800;letter-spacing:-1px}.brand i{font-style:normal;color:var(--purple)}.nav-pill{border:1px solid var(--line);background:#0c111d;color:var(--muted);border-radius:999px;padding:9px 13px;font-size:12px}
+.hero{text-align:center;padding:54px 0 26px}.eyebrow{font-size:12px;font-weight:800;color:#b9abff;letter-spacing:1.7px;text-transform:uppercase}.hero h1{font-size:clamp(43px,7vw,78px);line-height:.98;letter-spacing:-4px;margin:16px auto 20px;max-width:900px}.hero h1 span{background:linear-gradient(90deg,#fff,#a999ff);-webkit-background-clip:text;background-clip:text;color:transparent}.hero>p{max-width:700px;margin:auto;color:var(--muted);line-height:1.7;font-size:16px}
+.tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;max-width:900px;margin:28px auto 12px;padding:7px;background:#0b101b;border:1px solid var(--line);border-radius:17px}.tab{border:0;background:transparent;color:var(--muted);border-radius:12px;padding:13px 8px;font-weight:700;cursor:pointer}.tab.active{background:#1a2140;color:#fff;box-shadow:0 0 0 1px #383e66 inset}.tab .ico{margin-right:6px}
+.card{max-width:900px;margin:auto;background:rgba(13,18,32,.9);border:1px solid var(--line);border-radius:24px;padding:12px;box-shadow:0 30px 90px rgba(0,0,0,.38);backdrop-filter:blur(14px)}
+.inputrow{display:flex;gap:10px;background:#080d17;border:1px solid #263047;border-radius:16px;padding:8px}.inputrow input{flex:1;min-width:0;border:0;outline:0;background:transparent;color:#fff;padding:14px;font-size:15px}.inputrow button{border:0;background:var(--purple);color:#fff;border-radius:12px;padding:0 23px;font-weight:800;cursor:pointer}.inputrow button:disabled{opacity:.55}
+.helper{padding:10px 10px 4px;color:#68758e;font-size:11px;text-align:left}
+.result{display:none;margin-top:10px;padding:17px;border-radius:18px;background:var(--panel2);border:1px solid var(--line)}.result.show{display:block}.preview{display:flex;gap:17px;align-items:center}.thumb{width:220px;height:124px;border-radius:12px;object-fit:cover;background:#080c15}.title{font-weight:800;font-size:18px;line-height:1.35}.meta{font-size:12px;color:var(--muted);margin-top:7px}
+.controls{display:flex;gap:9px;flex-wrap:wrap;margin-top:17px}.controls select,.controls button{border:1px solid #303b57;background:#0b1120;color:#fff;border-radius:10px;padding:11px 13px}.controls button{border:0;background:var(--mint);color:#04110c;font-weight:900;cursor:pointer}.controls button:disabled{opacity:.55}.status{font-size:12px;color:var(--muted);margin-top:12px;min-height:18px}.progress{display:none;height:5px;background:#080d16;border-radius:99px;margin-top:11px;overflow:hidden}.progress.show{display:block}.bar{height:100%;width:0;background:linear-gradient(90deg,var(--purple),var(--mint));transition:width .25s}
+.features{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:18px auto 0;max-width:900px}.feature{padding:18px;background:#0b101b;border:1px solid var(--line);border-radius:16px}.feature strong{display:block;margin-bottom:7px}.feature p{margin:0;color:var(--muted);font-size:12px;line-height:1.6}
+.footer{padding:32px 0 60px;color:#68758e;text-align:center;font-size:11px;line-height:1.7}.footer a{color:#a99cff;text-decoration:none}
+@media(max-width:700px){.container{width:min(100% - 22px,1080px)}.nav{height:68px}.nav-pill{display:none}.hero{padding:42px 0 20px}.hero h1{letter-spacing:-2.5px}.tabs{grid-template-columns:repeat(2,1fr)}.inputrow{flex-direction:column}.inputrow button{height:48px}.preview{align-items:flex-start}.thumb{width:125px;height:72px}.features{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="container">
+<nav class="nav"><div class="brand">Drop<i>Fetch</i></div><div class="nav-pill">Fast media utility</div></nav>
+
+<section class="hero">
+<div class="eyebrow">One link. One place.</div>
+<h1>Download <span>what you need.</span></h1>
+<p>Paste a publicly accessible link from a supported platform, preview the media, choose the format and download it directly to your device.</p>
+</section>
+
+<div class="tabs" role="tablist">
+<button class="tab active" data-mode="video">🎬 Video</button>
+<button class="tab" data-mode="audio">🎵 Audio</button>
+<button class="tab" data-mode="image">🖼️ Image</button>
+<button class="tab" data-mode="file">📁 File</button>
+</div>
+
+<section class="card">
+<div class="inputrow">
+<input id="url" type="url" placeholder="Paste a video link here…" autocomplete="off">
+<button id="inspect">Inspect</button>
+</div>
+<div class="helper" id="helper">Video mode • MP4 download • quality selection</div>
+
+<div class="result" id="result">
+<div class="preview">
+<img id="thumb" class="thumb" alt="Preview">
+<div><div id="title" class="title"></div><div id="meta" class="meta"></div></div>
+</div>
+<div class="controls">
+<select id="mediaSelect">
+<option value="video">MP4 Video</option>
+<option value="audio">MP3 Audio</option>
+<option value="image">Image</option>
+<option value="file">File</option>
+</select>
+<select id="quality"><option value="best">Best available</option><option value="1080">Up to 1080p</option><option value="720">Up to 720p</option><option value="480">Up to 480p</option><option value="360">Up to 360p</option></select>
+<button id="download">Download</button>
+</div>
+<div class="progress" id="progress"><div class="bar" id="bar"></div></div>
+<div class="status" id="status"></div>
+</div>
+</section>
+
+<section class="features">
+<div class="feature"><strong>⚡ Optimized processing</strong><p>Parallel media fragments and direct browser delivery reduce unnecessary processing steps.</p></div>
+<div class="feature"><strong>🔒 Privacy by design</strong><p>No permanent media library is created by the app. Downloads are processed temporarily.</p></div>
+<div class="feature"><strong>📱 Ready for mobile</strong><p>Responsive controls and a simple four-mode workflow work on phones, tablets and desktop.</p></div>
+</section>
+
+<footer class="footer">
+DropFetch supports publicly accessible media from supported extractors. Platform support can change over time.<br>
+Use it only for content you are authorized to download and do not bypass DRM or private access controls.
+</footer>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+let mode="video", currentUrl="", busy=false;
+
+const copy={
+ video:["Paste a video link here…","Video mode • MP4 download • quality selection"],
+ audio:["Paste a video link here…","Audio mode • MP3 extraction"],
+ image:["Paste a post/image link here…","Image mode • downloads the best image/thumbnail exposed by the source"],
+ file:["Paste a direct file link here…","File mode • direct HTTP/HTTPS file URL"]
+};
+
+function setMode(m){
+ mode=m;
+ document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.mode===m));
+ $("url").placeholder=copy[m][0]; $("helper").textContent=copy[m][1];
+ $("mediaSelect").value=m;
+ $("quality").disabled=m!=="video";
+ $("result").classList.remove("show"); currentUrl="";
+}
+document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
+
+$("mediaSelect").onchange=()=>setMode($("mediaSelect").value);
+
+function status(msg,bad=false){$("status").textContent=msg;$("status").style.color=bad?"#ff7183":"#9da8be"}
+function dur(s){if(!s)return "";s=Math.round(s);let h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return h?`${h}h ${m}m`:`${m}m ${x}s`}
+
+$("inspect").onclick=async()=>{
+ const url=$("url").value.trim();
+ if(!url)return status("Paste a link first.",true);
+ $("inspect").disabled=true;$("inspect").textContent="Reading…";status("Inspecting source…");
+ try{
+   const r=await fetch("/api/info",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url})});
+   const d=await r.json(); if(!r.ok)throw Error(d.detail||"Could not inspect this link.");
+   currentUrl=url;$("result").classList.add("show");$("title").textContent=d.title;
+   $("meta").textContent=[d.uploader,d.site,durationText].filter(Boolean).join(" • ");
+   $("meta").textContent=[d.uploader,d.site,dur(d.duration)].filter(Boolean).join(" • ");
+   $("thumb").src=d.thumbnail||"";status("Ready. Choose your format and press Download.");
+ }catch(e){$("result").classList.add("show");status(e.message,true)}
+ finally{$("inspect").disabled=false;$("inspect").textContent="Inspect"}
+};
+
+$("download").onclick=async()=>{
+ if(!currentUrl||busy)return;
+ busy=true;$("download").disabled=true;$("inspect").disabled=true;
+ $("progress").classList.add("show");$("bar").style.width="8%";status("Preparing your download…");
+ const media=mode==="video"?"video":mode, quality=$("quality").value;
+ try{
+   const r=await fetch(`/api/download?url=${encodeURIComponent(currentUrl)}&media=${media}&quality=${quality}`);
+   $("bar").style.width="60%";
+   if(!r.ok){let d=await r.json().catch(()=>({}));throw Error(d.detail||"Download failed.");}
+   const blob=await r.blob();$("bar").style.width="92%";
+   const cd=r.headers.get("content-disposition")||"";let name="download";
+   const m=cd.match(/filename="?([^"]+)"?/i);if(m)name=m[1];
+   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;a.click();
+   setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+   $("bar").style.width="100%";status("Done — your file is ready.");
+ }catch(e){$("bar").style.width="0";status(e.message,true)}
+ finally{busy=false;$("download").disabled=false;$("inspect").disabled=false}
+};
+
+$("url").addEventListener("keydown",e=>{if(e.key==="Enter")$("inspect").click()});
+setMode("video");
+</script>
+</body>
+</html>
