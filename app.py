@@ -23,7 +23,7 @@ MAX_FILE_SIZE_MB = int(os.getenv("MAX_FILE_SIZE_MB", "1024"))
 MAX_CONCURRENT_DOWNLOADS = int(os.getenv("MAX_CONCURRENT_DOWNLOADS", "2"))
 RATE_LIMIT_SECONDS = float(os.getenv("RATE_LIMIT_SECONDS", "3"))
 
-app = FastAPI(title="DropFetch", version="4.1.0")
+app = FastAPI(title="DropFetch", version="4.1.1")
 
 POT_PROVIDER_HOST = os.getenv("POT_PROVIDER_HOST", "127.0.0.1")
 POT_PROVIDER_PORT = int(os.getenv("POT_PROVIDER_PORT", "4416"))
@@ -89,7 +89,15 @@ def base_ydl():
         "fragment_retries": 2,
         "concurrent_fragment_downloads": 8,
         "extractor_args": {
-            "youtubepot-bgutilhttp": {"base_url": POT_PROVIDER_URL},
+            # BgUtils PO-token HTTP provider.
+            "youtubepot-bgutilhttp": {
+                "base_url": POT_PROVIDER_URL,
+            },
+            # Current yt-dlp PO-token guidance recommends the mweb client
+            # when using a PO-token provider.
+            "youtube": {
+                "player_client": ["mweb"],
+            },
         },
     }
 
@@ -123,7 +131,22 @@ async def favicon():
 
 @app.get("/api/health")
 async def health():
-    return {"ok": True, "service": "DropFetch", "version": "4.1.0", "youtube_pot_provider": True}
+    provider_ready = False
+    try:
+        with socket.create_connection(
+            (POT_PROVIDER_HOST, POT_PROVIDER_PORT), timeout=0.5
+        ):
+            provider_ready = True
+    except OSError:
+        provider_ready = False
+
+    return {
+        "ok": True,
+        "service": "DropFetch",
+        "version": "4.1.1",
+        "youtube_pot_provider": True,
+        "youtube_pot_provider_ready": provider_ready,
+    }
 
 
 @app.post("/api/info")
@@ -531,13 +554,19 @@ async def startup():
         pass
 
     provider_candidates = [
-        Path("/opt/bgutil/server/build/main.js"),
         Path("/app/build/main.js"),
+        Path("/opt/bgutil/server/build/main.js"),
     ]
     provider = next((p for p in provider_candidates if p.exists()), None)
     node = "/usr/local/bin/node"
 
     if provider and Path(node).exists():
+        print(
+            f"Starting BgUtils PO-token provider: {provider} "
+            f"on {POT_PROVIDER_HOST}:{POT_PROVIDER_PORT}",
+            flush=True,
+        )
+
         pot_provider_process = subprocess.Popen(
             [
                 node,
@@ -547,8 +576,8 @@ async def startup():
                 "--port",
                 str(POT_PROVIDER_PORT),
             ],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.STDOUT,
+            stdout=None,
+            stderr=None,
         )
 
         # Give the provider a moment to bind its local port.
@@ -560,6 +589,23 @@ async def startup():
                     break
             except OSError:
                 await asyncio.sleep(0.25)
+
+        try:
+            with socket.create_connection(
+                (POT_PROVIDER_HOST, POT_PROVIDER_PORT), timeout=0.25
+            ):
+                pass
+        except OSError:
+            print(
+                "WARNING: BgUtils PO-token provider did not become ready.",
+                flush=True,
+            )
+    else:
+        print(
+            f"WARNING: BgUtils provider could not be started. "
+            f"provider={provider!s}, node_exists={Path(node).exists()}",
+            flush=True,
+        )
 
 
 @app.on_event("shutdown")
